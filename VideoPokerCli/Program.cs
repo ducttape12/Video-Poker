@@ -36,10 +36,10 @@ namespace VideoPokerCli
             PrintPayTable(payTable);
 
             var bet = GetMachineBetValue();
+            var game = new Game(player, payTable);
+            MachineDisplay.DisplayMachine(game, bet, "Play 1-5 coins or ESC for options.");
             do
             {
-                MachineDisplay.DisplayMachine(payTable, player, bet, "Play 1-5 coins or ESC for options.");
-
                 var choice = GetUserInput(true, false);
 
                 switch (choice)
@@ -48,27 +48,29 @@ namespace VideoPokerCli
                         Console.Clear();
                         payTable = GetPayTable();
                         bet = GetMachineBetValue();
+                        game = new Game(player, payTable);
+                        MachineDisplay.DisplayMachine(game, bet, "Play 1-5 coins or ESC for options.");
                         break;
                     
                     case Choice.One:
-                        PlayGame(player, payTable, bet, 1);
+                        PlayGame(game, bet, 1);
                         break;
                     case Choice.Two:
-                        PlayGame(player, payTable, bet, 2);
+                        PlayGame(game, bet, 2);
                         break;
                     case Choice.Three:
-                        PlayGame(player, payTable, bet, 3);
+                        PlayGame(game, bet, 3);
                         break;
                     case Choice.Four:
-                        PlayGame(player, payTable, bet, 4);
+                        PlayGame(game, bet, 4);
                         break;
                     case Choice.Five:
-                        PlayGame(player, payTable, bet, 5);
+                        PlayGame(game, bet, 5);
                         break;
                 }
             } while (player.Money > 0);
 
-            Console.WriteLine("Oops, you're broke.  Game over!");
+            Console.WriteLine("Oh no, you're penniless!  Game over.");
             Console.ReadLine();
         }
 
@@ -80,45 +82,44 @@ namespace VideoPokerCli
             return player;
         }
 
-        private static void PlayGame(Player player, IPayTable payTable, decimal bet, int coins)
+        private static void PlayGame(Game game, decimal bet, int coins)
         {
-            var videoPokerGame = new Game(player, payTable);
-            videoPokerGame.InitialDeal(bet, coins);
+            game.InitialDeal(bet, coins);
 
             Choice choice;
 
             do
             {
-                MachineDisplay.DisplayMachine(payTable, player, bet, "Hold cards 1-5 or ENTER to redeal.", coins, videoPokerGame.GetDrawnCards());
+                MachineDisplay.DisplayMachine(game, bet, "Hold cards 1-5 or ENTER to redeal.", coins);
 
                 choice = GetUserInput(false, true);
 
                 switch (choice)
                 {
                     case Choice.One:
-                        videoPokerGame.ToggleCardHold(0);
+                        game.ToggleCardHold(0);
                         break;
 
                     case Choice.Two:
-                        videoPokerGame.ToggleCardHold(0);
+                        game.ToggleCardHold(1);
                         break;
 
                     case Choice.Three:
-                        videoPokerGame.ToggleCardHold(0);
+                        game.ToggleCardHold(2);
                         break;
 
                     case Choice.Four:
-                        videoPokerGame.ToggleCardHold(0);
+                        game.ToggleCardHold(3);
                         break;
 
                     case Choice.Five:
-                        videoPokerGame.ToggleCardHold(0);
+                        game.ToggleCardHold(4);
                         break;
                 }
 
             } while (choice != Choice.Accept);
 
-            var results = videoPokerGame.ReDeal();
+            var results = game.ReDeal();
 
             var message = "Game over. Play 1-5 coins.";
 
@@ -127,7 +128,7 @@ namespace VideoPokerCli
                 message = $"Won ${results.WinAmount:0.##} with {results.WiningCombination.Description}!";
             }
 
-            MachineDisplay.DisplayMachine(payTable, player, bet, message, coins, videoPokerGame.GetDrawnCards());
+            MachineDisplay.DisplayMachine(game, bet, message, coins);
         }
 
         private static IPayTable GetPayTable()

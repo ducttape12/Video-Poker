@@ -6,29 +6,30 @@ namespace VideoPoker
 {
     public class Game
     {
-        private readonly Player player;
         private decimal bet;
         private int coins;
-        private readonly IPayTable payTable;
         private Deck deck;
-        private IList<DrawnCard> hand = new List<DrawnCard>();
+        private readonly IList<DrawnCard> hand = new List<DrawnCard> { null, null, null, null, null };
 
         private GameState gameState;
 
         public const int CardsToPlay = 5;
 
+        public IPayTable PayTable { get; }
+        public Player Player { get; }
+
         public Game(Player player, IPayTable payTable)
         {
             deck = new Deck();
-            this.player = player;
-            this.payTable = payTable;
+            this.Player = player;
+            this.PayTable = payTable;
         }
 
         public bool InitialDeal(decimal bet, int coins)
         {
             var totalBet = bet * coins;
 
-            if (player.Money < totalBet)
+            if (Player.Money < totalBet)
             {
                 return false;
             }
@@ -36,8 +37,9 @@ namespace VideoPoker
             this.bet = bet;
             this.coins = coins;
 
+            deck = new Deck();
             InitialDraw();
-            player.Money -= totalBet;
+            Player.Money -= totalBet;
 
             gameState = GameState.FirstDeal;
             return true;
@@ -52,7 +54,7 @@ namespace VideoPoker
 
             ReplaceCards();
 
-            var winningCombination = payTable.CheckForWin(hand.Select(c => c.Card).ToList());
+            var winningCombination = PayTable.CheckForWin(hand.Select(c => c.Card).ToList());
 
             if(winningCombination == null)
             {
@@ -62,7 +64,7 @@ namespace VideoPoker
 
             gameState = GameState.Won;
             var winAmount = winningCombination.GetPayoutMultiplier(coins) * bet;
-            player.Money += winAmount;
+            Player.Money += winAmount;
             return new GameStatePayload(gameState, winningCombination, winAmount);
         }
 
@@ -82,6 +84,7 @@ namespace VideoPoker
 
         private void InitialDraw()
         {
+            hand.Clear();
             for (var i = 0; i < CardsToPlay; i++)
             {
                 var drawnCard = new DrawnCard(deck.Draw());

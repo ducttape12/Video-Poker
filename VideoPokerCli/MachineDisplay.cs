@@ -13,47 +13,33 @@ namespace VideoPokerCli
         private const int payTableDisplayWidth = 57;
         private const int combinationDisplayWidth = 26;
         private const int payoutDisplayWidth = 4;
-        private const int coinDisplayWidth = 5;
-        private const int messageDisplayWidth = 40;
+        private const int coinDisplayWidth = 7;
+        private const int messageDisplayWidth = 41;
         private const int betDisplayWidth = 5;
 
-        public static void DisplayMachine(IPayTable payTable, Player player, decimal bet, string message)
+        public static void DisplayMachine(Game game, decimal bet, string message, int? coins = null)
         {
-            var undrawnCards = new List<DrawnCard>
-            {
-                new DrawnCard(new Card(FaceValue.Ace, Suit.Clubs)) { OnHold = true },
-                new DrawnCard(new Card(FaceValue.Ace, Suit.Clubs)) { OnHold = true },
-                new DrawnCard(new Card(FaceValue.Ace, Suit.Clubs)) { OnHold = true },
-                new DrawnCard(new Card(FaceValue.Ace, Suit.Clubs)) { OnHold = true },
-                new DrawnCard(new Card(FaceValue.Ace, Suit.Clubs)) { OnHold = true },
-            };
-
-            DisplayMachine(payTable, player, bet, message, null, undrawnCards);
-        }
-
-        public static void DisplayMachine(IPayTable payTable, Player player, decimal bet, string message, int? coins, IList<DrawnCard> drawnCards)
-        {
-            var renderedCards = drawnCards.Select(c => RenderCard(c)).ToList();
+            var renderedCards = game.GetDrawnCards().Select(c => RenderCard(c)).ToList();
             var coinDisplay = coins.HasValue ? $"{coins.Value} coin{(coins.Value > 1 ? "s" : string.Empty)}" : string.Empty;
             var betDisplay = $"${bet:0.##}";
-            var playerDisplay = $"{player.Name}: {player.Money:0.00}";
+            var playerDisplay = $"{game.Player.Name}: ${game.Player.Money:0.00}";
 
             Console.Clear();
             DisplayLine();
             DisplayLine($"    ╔═════════════════════════════════════════════════════════╗");
-            DisplayLine($"    ║{AlignText.AlignAndFit(payTable.Description, Alignment.Center, payTableDisplayWidth)}║");
+            DisplayLine($"    ║{AlignText.AlignAndFit(game.PayTable.Description, Alignment.Center, payTableDisplayWidth)}║");
             DisplayLine($"╔═══╩════════════════════════╤══════╤══════╤══════╤══════╤════╩═╤═╗");
             DisplayLine($"║ Combination                │    1 │    2 │    3 │    4 │    5 │ ║");
             DisplayLine($"╟────────────────────────────┼──────┼──────┼──────┼──────┼──────┼─╢");
 
-            foreach(var winCombo in payTable.WinCombinations)
+            foreach(var winCombo in game.PayTable.WinCombinations)
             {
                 DisplayLine($"║ {AlignText.AlignAndFit(winCombo.Description, Alignment.Left, combinationDisplayWidth)} │" +
                     $" {AlignText.AlignAndFit(winCombo.OneCreditPayout, Alignment.Right, payoutDisplayWidth)} │" +
                     $" {AlignText.AlignAndFit(winCombo.TwoCreditPayout, Alignment.Right, payoutDisplayWidth)} │" +
                     $" {AlignText.AlignAndFit(winCombo.ThreeCreditPayout, Alignment.Right, payoutDisplayWidth)} │" +
                     $" {AlignText.AlignAndFit(winCombo.FourCreditPayout, Alignment.Right, payoutDisplayWidth)} │" +
-                    $" {AlignText.AlignAndFit(winCombo.FiveCreditPayout, Alignment.Right, payoutDisplayWidth)} │");
+                    $" {AlignText.AlignAndFit(winCombo.FiveCreditPayout, Alignment.Right, payoutDisplayWidth)} │ ║");
             }
 
             DisplayLine($"╟────────────────────────────┴──────┴──────┴──────┴──────┴──────┴─╢");
@@ -65,8 +51,9 @@ namespace VideoPokerCli
             DisplayLine($"║   {renderedCards[0][4]}      {renderedCards[1][4]}      {renderedCards[2][4]}      {renderedCards[3][4]}      {renderedCards[4][4]}   ║");
             DisplayLine($"║      1            2            3            4            5      ║");
             DisplayLine($"╟─────────────────────────────────────────────────────────────────╢");
-            DisplayLine($"║ ┌─────────╥──────────────────────────────────────────╥────────┐ ║");
-            DisplayLine($"║ │ {AlignText.AlignAndFit(coinDisplay, Alignment.Center, coinDisplayWidth)} │ {AlignText.AlignAndFit(message, Alignment.Center, messageDisplayWidth)} │ {AlignText.AlignAndFit(betDisplay, Alignment.Right, betDisplayWidth)} │ ║");
+            DisplayLine($"║ ┌─────────╥───────────────────────────────────────────╥───────┐ ║");
+            DisplayLine($"║ │ {AlignText.AlignAndFit(coinDisplay, Alignment.Center, coinDisplayWidth)} ║ {AlignText.AlignAndFit(message, Alignment.Center, messageDisplayWidth)} ║ {AlignText.AlignAndFit(betDisplay, Alignment.Right, betDisplayWidth)} │ ║");
+            DisplayLine($"║ └─────────╨───────────────────────────────────────────╨───────┘ ║");
             DisplayLine($"╚═════════════════════════════════════════════════════════════════╝");
             DisplayLine();
             DisplayLine($"{AlignText.AlignAndFit(playerDisplay, Alignment.Center, machineWidthNeeded)}");
@@ -85,9 +72,13 @@ namespace VideoPokerCli
 
         private static IList<string> RenderCard(DrawnCard card)
         {
-            if(card.OnHold)
+            if(card == null)
             {
-                return RenderOnHoldCard();
+                return RenderNoCard();
+            }
+            else if(card.OnHold)
+            {
+                return RenderOnHoldCard(card.Card);
             }
             else
             {
@@ -95,7 +86,7 @@ namespace VideoPokerCli
             }
         }
 
-        private static IList<string> RenderOnHoldCard()
+        private static IList<string> RenderNoCard()
         {
             var display = new List<string>
             {
@@ -105,6 +96,15 @@ namespace VideoPokerCli
                 "███████",
                 "▀▀▀▀▀▀▀"
             };
+
+            return display;
+        }
+
+        private static IList<string> RenderOnHoldCard(Card card)
+        {
+            var display = RenderShownCard(card);
+
+            display[3] = "│ HLD │";
 
             return display;
         }
