@@ -8,16 +8,29 @@ namespace VideoPokerCli
 {
     public class Program
     {
-        static void Main(string[] args)
+        private const int MinimumWindowWidth = 80;
+        private const int MinimumWindowHeight = 30;
+
+        private static bool EnvironmentCheck()
         {
+            if(Console.WindowWidth < MinimumWindowWidth || Console.WindowHeight < MinimumWindowHeight)
+            {
+                Console.WriteLine($"The console must be a minimum of {MinimumWindowWidth} x {MinimumWindowHeight}");
+                return false;
+            }
+
+            return true;
+        }
+
+        public static void Main(string[] args)
+        {
+            if (!EnvironmentCheck())
+            {
+                return;
+            }
+
             Console.Clear();
-            Console.Write("Enter your name: ");
-            var name = Console.ReadLine();
-
-            Console.WriteLine($"Welcome {name} to Video Poker!  We're going to give you $100 to get you started.  Enjoy!");
-
-            var player = new Player { Name = name, Money = 100 };
-
+            Player player = PlayerSetup();
             var payTable = GetPayTable();
 
             PrintPayTable(payTable);
@@ -25,36 +38,31 @@ namespace VideoPokerCli
             var bet = GetMachineBetValue();
             do
             {
-                Console.WriteLine();
-                Console.WriteLine($"{player.Name} has ${player.Money:0.00}");
-                Console.WriteLine($"Playing ${bet:0.00} {payTable.Description}");
+                MachineDisplay.DisplayMachine(payTable, player, bet, "Play 1-5 coins or ESC for options.");
 
-                var userChoice = GetUserChoice();
+                var choice = GetUserInput(true, false);
 
-                switch (userChoice)
+                switch (choice)
                 {
-                    case Choice.ChangeBet:
+                    case Choice.Options:
+                        Console.Clear();
+                        payTable = GetPayTable();
                         bet = GetMachineBetValue();
                         break;
-                    case Choice.ChangeMachine:
-                        payTable = GetPayTable();
-                        break;
-                    case Choice.DisplayPayTable:
-                        PrintPayTable(payTable);
-                        break;
-                    case Choice.PlayOneCoin:
+                    
+                    case Choice.One:
                         PlayGame(player, payTable, bet, 1);
                         break;
-                    case Choice.PlayTwoCoins:
+                    case Choice.Two:
                         PlayGame(player, payTable, bet, 2);
                         break;
-                    case Choice.PlayThreeCoins:
+                    case Choice.Three:
                         PlayGame(player, payTable, bet, 3);
                         break;
-                    case Choice.PlayFourCoins:
+                    case Choice.Four:
                         PlayGame(player, payTable, bet, 4);
                         break;
-                    case Choice.PlayFiveCoins:
+                    case Choice.Five:
                         PlayGame(player, payTable, bet, 5);
                         break;
                 }
@@ -64,42 +72,62 @@ namespace VideoPokerCli
             Console.ReadLine();
         }
 
+        private static Player PlayerSetup()
+        {
+            Console.Write("Enter your name: ");
+            var name = Console.ReadLine();
+            var player = new Player { Name = name, Money = 100m };
+            return player;
+        }
+
         private static void PlayGame(Player player, IPayTable payTable, decimal bet, int coins)
         {
             var videoPokerGame = new Game(player, payTable);
             videoPokerGame.InitialDeal(bet, coins);
 
-            Console.WriteLine();
-            Console.WriteLine("First Deal:");
-            ShowCards(videoPokerGame);
+            Choice choice;
 
-            Console.Write("Enter the cards you wish to hold separated by a space: ");
-            var cardsToHold = Console.ReadLine();
-
-            var cardIndexes = string.IsNullOrWhiteSpace(cardsToHold) ?
-                new List<int>() :
-                cardsToHold.Trim().Split(" ").Select(c => int.Parse(c)).ToList();
-
-            foreach (var index in cardIndexes)
+            do
             {
-                videoPokerGame.ToggleCardHold(index - 1);
-            }
+                MachineDisplay.DisplayMachine(payTable, player, bet, "Hold cards 1-5 or ENTER to redeal.", coins, videoPokerGame.GetDrawnCards());
+
+                choice = GetUserInput(false, true);
+
+                switch (choice)
+                {
+                    case Choice.One:
+                        videoPokerGame.ToggleCardHold(0);
+                        break;
+
+                    case Choice.Two:
+                        videoPokerGame.ToggleCardHold(0);
+                        break;
+
+                    case Choice.Three:
+                        videoPokerGame.ToggleCardHold(0);
+                        break;
+
+                    case Choice.Four:
+                        videoPokerGame.ToggleCardHold(0);
+                        break;
+
+                    case Choice.Five:
+                        videoPokerGame.ToggleCardHold(0);
+                        break;
+                }
+
+            } while (choice != Choice.Accept);
 
             var results = videoPokerGame.ReDeal();
 
-            Console.WriteLine();
-            Console.WriteLine("Redrawn cards:");
-            ShowCards(videoPokerGame);
+            var message = "Game over. Play 1-5 coins.";
 
-            Console.WriteLine();
-            if (results.GameState == GameState.Lost)
+            if(results.GameState == GameState.Won)
             {
-                Console.WriteLine($"I'm sorry, you lost ${(bet * coins):0.00}");
+                message = $"Won ${results.WinAmount:0.##} with {results.WiningCombination.Description}!";
             }
-            else
-            {
-                Console.WriteLine($"You won ${results.WinAmount:0.00} with a {results.WiningCombination.Description}!");
-            }
+
+            MachineDisplay.DisplayMachine(payTable, player, bet, message, coins, videoPokerGame.GetDrawnCards());
         }
 
         private static IPayTable GetPayTable()
@@ -124,16 +152,6 @@ namespace VideoPokerCli
                         Console.WriteLine("Please enter a valid choice.");
                         break;
                 }
-            }
-        }
-
-        private static void ShowCards(Game videoPokerGame)
-        {
-            for (var i = 0; i < Game.CardsToPlay; i++)
-            {
-                var drawnCard = videoPokerGame.GetDrawnCard(i);
-
-                Console.WriteLine($"{i + 1}. {drawnCard.Card.FaceValue} of {drawnCard.Card.Suit}");
             }
         }
 
@@ -189,47 +207,58 @@ namespace VideoPokerCli
 
         private enum Choice
         {
-            ChangeMachine,
-            ChangeBet,
-            DisplayPayTable,
-            PlayOneCoin,
-            PlayTwoCoins,
-            PlayThreeCoins,
-            PlayFourCoins,
-            PlayFiveCoins
+            Options,
+            Accept,
+            One,
+            Two,
+            Three,
+            Four,
+            Five
         }
 
-        private static Choice GetUserChoice()
+        private static Choice GetUserInput(bool allowOptions, bool allowAccept)
         {
             while(true)
             {
-                Console.WriteLine("  p. Display pay table");
-                Console.WriteLine("  m. Change machine");
-                Console.WriteLine("  b. Change bet");
-                Console.WriteLine("1-5. Number of coins to play on current machine");
-                Console.Write("Enter your choice: ");
-                var choice = Console.ReadLine();
+                var choice = Console.ReadKey();
 
-                switch(choice.ToLowerInvariant())
+                switch(choice.Key)
                 {
-                    case "p":
-                        return Choice.DisplayPayTable;
-                    case "b":
-                        return Choice.ChangeBet;
-                    case "m":
-                        return Choice.ChangeMachine;
-                    case "1":
-                        return Choice.PlayOneCoin;
-                    case "2":
-                        return Choice.PlayTwoCoins;
-                    case "3":
-                        return Choice.PlayThreeCoins;
-                    case "4":
-                        return Choice.PlayFourCoins;
-                    case "5":
-                        return Choice.PlayFiveCoins;
+                    case ConsoleKey.Escape:
+                        if(allowOptions)
+                        {
+                            return Choice.Options;
+                        }
+                        break;
+                        
+                    case ConsoleKey.D1:
+                    case ConsoleKey.NumPad1:
+                        return Choice.One;
+
+                    case ConsoleKey.D2:
+                    case ConsoleKey.NumPad2:
+                        return Choice.Two;
+
+                    case ConsoleKey.D3:
+                    case ConsoleKey.NumPad3:
+                        return Choice.Three;
+
+                    case ConsoleKey.D4:
+                    case ConsoleKey.NumPad4:
+                        return Choice.Four;
+
+                    case ConsoleKey.D5:
+                    case ConsoleKey.NumPad5:
+                        return Choice.Five;
+
+                    case ConsoleKey.Enter:
+                        if(allowAccept)
+                        {
+                            return Choice.Accept;
+                        }
+                        break;
+
                     default:
-                        Console.WriteLine("Please enter a valid choice.");
                         break;
                 }
             }

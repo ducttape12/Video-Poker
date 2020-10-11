@@ -98,6 +98,11 @@ namespace VideoPoker
 
             return hand[index];
         }
+        
+        public IList<DrawnCard> GetDrawnCards()
+        {
+            return hand;
+        }
 
         public bool ToggleCardHold(int index)
         {
