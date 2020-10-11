@@ -17,22 +17,46 @@ namespace VideoPokerCli
         private const int messageDisplayWidth = 41;
         private const int betDisplayWidth = 5;
 
+        private const int AnimationSpeedMilliseconds = 200;
+
+        public static void AnimateFlippingNoHoldCards(Game game, decimal bet, string message, int? coins = null)
+        {
+            var finalCards = game.GetDrawnCards();
+            var cards = finalCards.Select(c => c.OnHold ? c : null).ToList();
+
+            DisplayMachine(game.PayTable, game.Player, bet, message, cards, coins);
+            for(var i = 0; i < cards.Count; i++)
+            {
+                if(cards[i] == null)
+                {
+                    System.Threading.Thread.Sleep(AnimationSpeedMilliseconds);
+                    cards[i] = finalCards[i];
+                    DisplayMachine(game.PayTable, game.Player, bet, message, cards, coins);
+                }
+            }
+        }
+
         public static void DisplayMachine(Game game, decimal bet, string message, int? coins = null)
         {
-            var renderedCards = game.GetDrawnCards().Select(c => RenderCard(c)).ToList();
+            DisplayMachine(game.PayTable, game.Player, bet, message, game.GetDrawnCards(), coins);
+        }
+
+        private static void DisplayMachine(IPayTable payTable, Player player, decimal bet, string message, IList<DrawnCard> cards, int? coins = null)
+        {
+            var renderedCards = cards.Select(c => RenderCard(c)).ToList();
             var coinDisplay = coins.HasValue ? $"{coins.Value} coin{(coins.Value > 1 ? "s" : string.Empty)}" : string.Empty;
             var betDisplay = $"${bet:0.##}";
-            var playerDisplay = $"{game.Player.Name}: ${game.Player.Money:0.00}";
+            var playerDisplay = $"{player.Name}: ${player.Money:0.00}";
 
             Console.Clear();
             DisplayLine();
             DisplayLine($"    ╔═════════════════════════════════════════════════════════╗");
-            DisplayLine($"    ║{AlignText.AlignAndFit(game.PayTable.Description, Alignment.Center, payTableDisplayWidth)}║");
+            DisplayLine($"    ║{AlignText.AlignAndFit(payTable.Description, Alignment.Center, payTableDisplayWidth)}║");
             DisplayLine($"╔═══╩════════════════════════╤══════╤══════╤══════╤══════╤════╩═╤═╗");
             DisplayLine($"║ Combination                │    1 │    2 │    3 │    4 │    5 │ ║");
             DisplayLine($"╟────────────────────────────┼──────┼──────┼──────┼──────┼──────┼─╢");
 
-            foreach(var winCombo in game.PayTable.WinCombinations)
+            foreach (var winCombo in payTable.WinCombinations)
             {
                 DisplayLine($"║ {AlignText.AlignAndFit(winCombo.Description, Alignment.Left, combinationDisplayWidth)} │" +
                     $" {AlignText.AlignAndFit(winCombo.OneCreditPayout, Alignment.Right, payoutDisplayWidth)} │" +

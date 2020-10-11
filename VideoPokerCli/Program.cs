@@ -29,14 +29,15 @@ namespace VideoPokerCli
                 return;
             }
 
+            Console.BackgroundColor = ConsoleColor.DarkMagenta;
+            Console.ForegroundColor = ConsoleColor.White;
+
             Console.Clear();
             Player player = PlayerSetup();
             var payTable = GetPayTable();
-
-            PrintPayTable(payTable);
-
             var bet = GetMachineBetValue();
             var game = new Game(player, payTable);
+
             MachineDisplay.DisplayMachine(game, bet, "Play 1-5 coins or ESC for options.");
             do
             {
@@ -84,9 +85,14 @@ namespace VideoPokerCli
 
         private static void PlayGame(Game game, decimal bet, int coins)
         {
-            game.InitialDeal(bet, coins);
+            if (!game.InitialDeal(bet, coins))
+            {
+                return;
+            }
 
             Choice choice;
+
+            MachineDisplay.AnimateFlippingNoHoldCards(game, bet, string.Empty, coins);
 
             do
             {
@@ -121,14 +127,16 @@ namespace VideoPokerCli
 
             var results = game.ReDeal();
 
-            var message = "Game over. Play 1-5 coins.";
+            MachineDisplay.AnimateFlippingNoHoldCards(game, bet, string.Empty, coins);
+
+            var finalMessage = "Game over. Play 1-5 coins.";
 
             if(results.GameState == GameState.Won)
             {
-                message = $"Won ${results.WinAmount:0.##} with {results.WiningCombination.Description}!";
+                finalMessage = $"Won ${results.WinAmount:0.##} with {results.WiningCombination.Description}!";
             }
+            MachineDisplay.DisplayMachine(game, bet, finalMessage, coins);
 
-            MachineDisplay.DisplayMachine(game, bet, message, coins);
         }
 
         private static IPayTable GetPayTable()
@@ -221,7 +229,7 @@ namespace VideoPokerCli
         {
             while(true)
             {
-                var choice = Console.ReadKey();
+                var choice = Console.ReadKey(true);
 
                 switch(choice.Key)
                 {
@@ -262,29 +270,6 @@ namespace VideoPokerCli
                     default:
                         break;
                 }
-            }
-        }
-
-        private static void PrintPayTable(IPayTable payTable)
-        {
-            const int descriptionPadding = 25;
-            const int payoutPadding = 4;
-
-            var payoutList = payTable
-                .WinCombinations
-                .Select(c => $"{c.Description,descriptionPadding} | {c.OneCreditPayout,payoutPadding} | {c.TwoCreditPayout,payoutPadding} | {c.ThreeCreditPayout,payoutPadding} | {c.FourCreditPayout,payoutPadding} | {c.FiveCreditPayout,payoutPadding} |")
-                .ToList();
-
-            var maxLineLength = payoutList.Max(p => p.Length);
-
-            Console.WriteLine();
-            Console.WriteLine(payTable.Description);
-            Console.WriteLine($"{"".PadLeft(payTable.Description.Length, '=')}");
-            Console.WriteLine($"{"Combination",descriptionPadding} | {"1",payoutPadding} | {"2",payoutPadding} | {"3",payoutPadding} | {"4",payoutPadding} | {"5",payoutPadding} |");
-            Console.WriteLine($"{"".PadLeft(maxLineLength, '-')}");
-            foreach (var payout in payoutList)
-            {
-                Console.WriteLine(payout);
             }
         }
     }
